@@ -1,8 +1,9 @@
 import express, { Application } from "express";
 import cors from "cors";
 import morgan from "morgan";
-import inspirationRoutes from "./routes/inspirationRoutes";
 import dotenv from "dotenv";
+import router from "./routes/routes";
+import path from "path";
 
 dotenv.config();
 
@@ -11,7 +12,8 @@ const app: Application = express();
 app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
+app.use("/public", express.static(path.join(__dirname, "../public")));
 
-app.use("/api", inspirationRoutes);
+app.use("/api", router);
 
 export default app;

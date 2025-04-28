@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -32,4 +31,7 @@ model Inspiration {
   pageViews          Int      @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+
+  @@map("inspirations")
 }
