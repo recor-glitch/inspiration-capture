@@ -9,6 +9,7 @@ import {
   GetInspirationFromDBBySlug,
   SaveInspiration,
 } from "../services/prisma-service";
+import redis from "../utils/redis";
 
 export const GetInspirationFromURL = async (
   req: Request,
@@ -30,6 +31,7 @@ export const GetInspirationFromURL = async (
     res.status(200).json({ links });
     return;
   } catch (error) {
+    console.error("My error: ", error);
     res.status(500).json({ error: "Internal server error" });
     return;
   }
@@ -75,7 +77,20 @@ export const GetAllInspiration = async (
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
+
+    const cachedKey = `inspirations:page:${page}:limit:${limit}`;
+
+    const cachedData = await redis.get(cachedKey);
+    if (cachedData) {
+      console.log(`Cache hit: ${cachedKey}`);
+      res.status(200).json(JSON.parse(cachedData));
+      return;
+    }
+
     const inspirations = await GetAllInspirationFromDB({ skip, limit });
+
+    await redis.set(cachedKey, JSON.stringify(inspirations), "EX", 60);
+
     res.status(200).json(inspirations);
     return;
   } catch (error) {
@@ -97,11 +112,22 @@ export const GetInspirationBySlug = async (
   }
 
   try {
+    const cachedKey = `inspiration:${slug}`;
+    const cachedData = await redis.get(cachedKey);
+    if (cachedData) {
+      console.log(`Cache hit: ${cachedKey}`);
+      res.status(200).json(JSON.parse(cachedData));
+      return;
+    }
+
     const inspiration = await GetInspirationFromDBBySlug(slug);
     if (!inspiration) {
       res.status(404).json({ error: "Inspiration not found" });
       return;
     }
+
+    redis.set(cachedKey, JSON.stringify(inspiration), "EX", 60);
+
     res.status(200).json(inspiration);
     return;
   } catch (error) {

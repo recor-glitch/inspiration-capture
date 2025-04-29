@@ -5,10 +5,17 @@ import puppeteer from "puppeteer";
 export const GetScreenshot = async (
   url: string
 ): Promise<{ mobile: string; desktop: string }> => {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    protocolTimeout: 60000,
+  });
 
   const page = await browser.newPage();
-  await page.goto(url, { waitUntil: "networkidle2" });
+  await page.goto(url, {
+    waitUntil: "domcontentloaded",
+    timeout: 60000,
+  });
 
   const screenshotsDir = path.resolve(__dirname, "../../public/screenshots");
 

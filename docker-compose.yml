@@ -1,17 +1,36 @@
 version: "3.8"
 
 services:
-  mongodb:
-    image: mongo:latest
-    container_name: mongodb
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+  # mongodb:
+  #   image: mongo:latest
+  #   container_name: mongodb
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: admin
+  #     MONGO_INITDB_ROOT_PASSWORD: password
+  #   volumes:
+  #     - mongodb_data:/data/db
+
+  redis:
+    image: redis:alpine
+    container_name: inspiration-redis
     ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-    volumes:
-      - mongodb_data:/data/db
+      - "6379:6379"
+
+  # express-backend:
+  #   build: .
+  #   container_name: inspiration-express-backend
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     - DATABASE_URL=mongodb+srv://admin:VruZ5gHzOGu1Psrs@cluster0.qinqtcw.mongodb.net/inspiration?retryWrites=true&w=majority
+  #     - BASE_URL=http://localhost:5000
+  #     - REDIS_HOST=redis
+  #     - JWT_SECRET=supersecret
+  #   depends_on:
+  #     - redis
+  #   restart: always
 
 volumes:
   mongodb_data:
