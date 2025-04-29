@@ -5,12 +5,16 @@ import {
   GetInspirationBySlug,
   GetInspirationFromURL,
 } from "../controllers/inspiration-controller";
+import { generateToken } from "../controllers/auth-controller";
+import { verifyToken } from "../middlewares/authMiddleware";
 
 const router = express.Router();
 
-router.post("/", GetInspirationFromURL);
-router.post("/inspiration", AddInspiration);
-router.get("/inspiration", GetAllInspiration);
-router.get("/inspiration/:slug", GetInspirationBySlug);
+router.post("/login", generateToken);
+
+router.post("/", verifyToken, GetInspirationFromURL);
+router.post("/inspiration", verifyToken, AddInspiration);
+router.get("/inspiration", verifyToken, GetAllInspiration);
+router.get("/inspiration/:slug", verifyToken, GetInspirationBySlug);
 
 export default router;
