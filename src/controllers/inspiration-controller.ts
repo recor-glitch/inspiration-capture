@@ -20,6 +20,7 @@ export const GetInspirationFromURL = async (
 
   if (!url) {
     res.status(400).json({ error: "URL is required" });
+    return;
   }
 
   try {
