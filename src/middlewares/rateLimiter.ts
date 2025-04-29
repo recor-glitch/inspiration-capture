@@ -1,55 +1,42 @@
-import { Response, Request, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import redis from "../utils/redis";
+
+const WINDOW_SECONDS = 60;
+const MAX_REQUESTS = 10;
 
 export const rateLimiter = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
+  const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+  const redisKey = `ratelimit:${ip}`;
+
   try {
-    const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
-    const key = `rate_limit:${ip}`;
-    const currentTime = Date.now();
-    const windowSize = 60 * 1000; // 1 minute
-    const maxRequests = 100; // Max requests per minute
+    const current = await redis.incr(redisKey);
 
-    // Get the current request count and timestamp from Redis
-    const data = await redis.get(key);
-    let requestCount = 0;
-    let firstRequestTime = currentTime;
-
-    if (data) {
-      const parsedData = JSON.parse(data);
-      requestCount = parsedData.count;
-      firstRequestTime = parsedData.timestamp;
+    if (current === 1) {
+      await redis.expire(redisKey, WINDOW_SECONDS);
     }
 
-    // Check if the time window has expired
-    if (currentTime - firstRequestTime > windowSize) {
-      requestCount = 0; // Reset the count if the time window has expired
-      firstRequestTime = currentTime;
-    }
+    const ttl = await redis.ttl(redisKey);
 
-    // Increment the request count
-    requestCount++;
-
-    // Check if the rate limit has been exceeded
-    if (requestCount > maxRequests) {
-      res.status(429).json({ error: "Too many requests" });
+    if (current > MAX_REQUESTS) {
+      res.status(429).json({
+        error: "Too Many Requests",
+        message: `Limit exceeded: ${MAX_REQUESTS} requests per ${WINDOW_SECONDS} seconds.`,
+        retryAfter: ttl,
+      });
       return;
     }
 
-    // Store the updated request count and timestamp in Redis
-    await redis.set(
-      key,
-      JSON.stringify({ count: requestCount, timestamp: firstRequestTime }),
-      "EX",
-      Math.floor(windowSize / 1000)
-    );
+    res.setHeader("X-RateLimit-Limit", MAX_REQUESTS);
+    res.setHeader("X-RateLimit-Remaining", MAX_REQUESTS - current);
+    res.setHeader("X-RateLimit-Reset", ttl);
 
-    next(); // Proceed to the next middleware or route handler
+    next();
   } catch (error) {
-    console.error("Error in rate limiter middleware:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Rate limiter failed:", error);
+    res.status(500).json({ error: "Internal server error (rate limiter)" });
   }
 };
