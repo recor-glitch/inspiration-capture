@@ -1,39 +1,49 @@
-# Use full Node base image
-FROM node:20-alpine
+# Use a slim Node base image for Puppeteer compatibility
+FROM node:20-slim
 
-# Install required Linux dependencies for Puppeteer
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    nodejs \
-    yarn \
-    udev \
-    dumb-init \
-    bash \
-    curl
-
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy and install dependencies
-COPY package*.json ./
+# Install Chromium and required system dependencies
+RUN apt-get update && apt-get install -y \
+    chromium \
+    fonts-liberation \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libgbm1 \
+    libgtk-3-0 \
+    libasound2 \
+    libnss3 \
+    libxss1 \
+    libxshmfence1 \
+    libxdamage1 \
+    libxrandr2 \
+    libxcomposite1 \
+    libxext6 \
+    libx11-xcb1 \
+    xdg-utils \
+    wget \
+    ca-certificates \
+    --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy package.json and lock file first (for caching)
+COPY package.json package-lock.json ./
+
+# Install dependencies (includes prisma)
 RUN npm install
 
-# Copy source code
+# Copy the rest of the application code
 COPY . .
 
-# Set environment variable for Puppeteer
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-
-# Generate Prisma client if needed
+# Prisma generate step (after code is copied, so schema is available)
 RUN npx prisma generate
 
-# Expose port
+# Set Puppeteer Chromium path
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Expose app port
 EXPOSE 5000
 
-# Start app
+# Start your app
 CMD ["npm", "run", "dev"]
